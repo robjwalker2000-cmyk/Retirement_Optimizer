@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retirement Optimizer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="toolbar" aria-label="Retirement optimizer summary">
+        <div>
+          <p class="eyebrow">Retirement_Optimizer</p>
+          <h1>Plan the gap between work, savings, and future income.</h1>
+        </div>
+        <div class="status-pill" id="readinessPill">Calculating</div>
+      </section>
+
+      <section class="workspace">
+        <aside class="controls-panel" aria-label="Retirement assumptions">
+          <div class="panel-heading">
+            <h2>Assumptions</h2>
+            <button class="icon-button" id="resetButton" type="button" title="Reset assumptions" aria-label="Reset assumptions">
+              ↺
+            </button>
+          </div>
+
+          <form id="optimizerForm">
+            <label>
+              Current age
+              <input id="currentAge" type="number" min="18" max="90" value="42" />
+            </label>
+            <label>
+              Retirement age
+              <input id="retirementAge" type="number" min="35" max="95" value="62" />
+            </label>
+            <label>
+              Planning age
+              <input id="planningAge" type="number" min="60" max="110" value="95" />
+            </label>
+            <label>
+              Current retirement savings
+              <input id="currentSavings" type="number" min="0" step="1000" value="380000" />
+            </label>
+            <label>
+              Annual contribution
+              <input id="annualContribution" type="number" min="0" step="500" value="24000" />
+            </label>
+            <label>
+              Employer match
+              <input id="employerMatch" type="number" min="0" step="500" value="6000" />
+            </label>
+            <label>
+              Desired annual spending
+              <input id="annualSpending" type="number" min="0" step="1000" value="85000" />
+            </label>
+            <label>
+              Annual Social Security / pension
+              <input id="fixedIncome" type="number" min="0" step="1000" value="32000" />
+            </label>
+
+            <div class="range-row">
+              <label for="growthRate">Expected return</label>
+              <span id="growthRateValue">6.0%</span>
+              <input id="growthRate" type="range" min="1" max="10" step="0.1" value="6" />
+            </div>
+            <div class="range-row">
+              <label for="inflationRate">Inflation</label>
+              <span id="inflationRateValue">2.5%</span>
+              <input id="inflationRate" type="range" min="0" max="7" step="0.1" value="2.5" />
+            </div>
+            <div class="range-row">
+              <label for="taxRate">Effective tax rate</label>
+              <span id="taxRateValue">18%</span>
+              <input id="taxRate" type="range" min="0" max="40" step="1" value="18" />
+            </div>
+          </form>
+        </aside>
+
+        <section class="results-panel" aria-label="Retirement projection results">
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Projected at retirement</span>
+              <strong id="retirementBalance">$0</strong>
+            </article>
+            <article class="metric">
+              <span>First-year portfolio need</span>
+              <strong id="portfolioNeed">$0</strong>
+            </article>
+            <article class="metric">
+              <span>Sustainable withdrawal</span>
+              <strong id="withdrawalRate">0%</strong>
+            </article>
+            <article class="metric">
+              <span>Estimated final balance</span>
+              <strong id="finalBalance">$0</strong>
+            </article>
+          </div>
+
+          <div class="chart-section">
+            <div class="section-heading">
+              <h2>Balance Projection</h2>
+              <div class="legend">
+                <span><i class="dot saved"></i>Savings</span>
+                <span><i class="dot spent"></i>Spending draw</span>
+              </div>
+            </div>
+            <canvas id="projectionChart" width="1100" height="430" aria-label="Retirement balance chart"></canvas>
+          </div>
+
+          <div class="insight-row">
+            <article class="insight">
+              <h3>Optimization Target</h3>
+              <p id="optimizerMessage"></p>
+            </article>
+            <article class="insight">
+              <h3>Levers</h3>
+              <ul id="leversList"></ul>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
