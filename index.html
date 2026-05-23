@@ -10,96 +10,408 @@
     <main class="app-shell">
       <section class="toolbar" aria-label="Retirement optimizer summary">
         <div>
-          <p class="eyebrow">Retirement_Optimizer</p>
-          <h1>Plan the gap between work, savings, and future income.</h1>
+          <p class="eyebrow">
+            <span>Retirement_Optimizer</span>
+            <span class="version-tag">0.2</span>
+            <span class="plan-status-badge" id="planStatusBadge">No Plan Loaded</span>
+          </p>
+          <h1>Plan the next retirement year and its long-term effect.</h1>
         </div>
         <div class="status-pill" id="readinessPill">Calculating</div>
       </section>
 
       <section class="workspace">
         <aside class="controls-panel" aria-label="Retirement assumptions">
-          <div class="panel-heading">
-            <h2>Assumptions</h2>
-            <button class="icon-button" id="resetButton" type="button" title="Reset assumptions" aria-label="Reset assumptions">
-              ↺
-            </button>
-          </div>
-
           <form id="optimizerForm">
-            <label>
-              Current age
-              <input id="currentAge" type="number" min="18" max="90" value="42" />
-            </label>
-            <label>
-              Retirement age
-              <input id="retirementAge" type="number" min="35" max="95" value="62" />
-            </label>
-            <label>
-              Planning age
-              <input id="planningAge" type="number" min="60" max="110" value="95" />
-            </label>
-            <label>
-              Current retirement savings
-              <input id="currentSavings" type="number" min="0" step="1000" value="380000" />
-            </label>
-            <label>
-              Annual contribution
-              <input id="annualContribution" type="number" min="0" step="500" value="24000" />
-            </label>
-            <label>
-              Employer match
-              <input id="employerMatch" type="number" min="0" step="500" value="6000" />
-            </label>
-            <label>
-              Desired annual spending
-              <input id="annualSpending" type="number" min="0" step="1000" value="85000" />
-            </label>
-            <label>
-              Annual Social Security / pension
-              <input id="fixedIncome" type="number" min="0" step="1000" value="32000" />
-            </label>
+            <div class="spending-group planning-controls" aria-label="Tax year plan controls">
+              <div class="group-heading">
+                <span>Tax-year plan</span>
+                <strong id="annualSpendingTotal">£0/yr</strong>
+              </div>
+              <div class="import-export-row">
+                <button class="text-button" id="exportSettingsButton" type="button">Export</button>
+                <button class="text-button" id="importSettingsButton" type="button">Import</button>
+                <input id="importSettingsFile" type="file" accept="application/json,.json,text/csv,.csv" hidden />
+              </div>
+              <div class="range-row plan-year-control" id="planYearControl" hidden>
+                <label for="planYearSlider">Plan year</label>
+                <span id="planYearValue">-</span>
+                <input id="planYearSlider" type="range" min="0" max="0" step="1" value="0" />
+              </div>
+              <div class="planning-slider-grid">
+                <div class="range-row">
+                  <label for="targetEquivalentIncome">Target equivalent income</label>
+                  <span id="targetEquivalentIncomeValue">£80,000</span>
+                  <input id="targetEquivalentIncomeExact" class="exact-amount-input" type="number" min="20000" max="80000" step="1" value="80000" aria-label="Exact target equivalent income" />
+                  <input id="targetEquivalentIncome" type="range" min="20000" max="80000" step="1" value="80000" />
+                </div>
+                <div class="range-row">
+                  <label for="taxFreeLumpSumsThisYear">TFLs this year</label>
+                  <span id="taxFreeLumpSumsThisYearValue">£0</span>
+                  <input id="taxFreeLumpSumsThisYear" type="range" min="0" max="100000" step="1" value="0" />
+                  <small id="taxFreeLumpSumsThisYearNote">Available TFC: £0</small>
+                </div>
+              </div>
+              <div class="funding-source-grid">
+                <label>
+                  Partner work
+                  <input id="partnerWorkIncome" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Partner state pension
+                  <input id="partnerStatePension" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Partner work pension
+                  <input id="partnerWorkPension" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Partner savings
+                  <input id="partnerSavings" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Sourced from ISA
+                  <input id="isaSource" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Sourced from savings
+                  <input id="savingsSource" type="number" min="0" step="100" value="0" />
+                </label>
+                <label>
+                  Sourced from premium bonds
+                  <input id="premiumBondsSource" type="number" min="0" step="100" value="0" />
+                </label>
+              </div>
+              <div class="spending-group planned-spending-controls" aria-label="Planned spending categories">
+                <div class="group-heading">
+                  <span>Spending breakdown</span>
+                </div>
+                <div class="spending-row">
+                  <label for="billsAmount">Bills</label>
+                  <input id="billsAmount" type="number" min="0" step="100" value="5000" />
+                  <div class="frequency-toggle" aria-label="Bills frequency">
+                    <label>
+                      <input type="radio" name="billsFrequency" value="monthly" checked />
+                      <span>Mo</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="billsFrequency" value="annual" />
+                      <span>Yr</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="spending-row">
+                  <label for="holidaysAmount">Holidays</label>
+                  <input id="holidaysAmount" type="number" min="0" step="100" value="15000" />
+                  <div class="frequency-toggle" aria-label="Holidays frequency">
+                    <label>
+                      <input type="radio" name="holidaysFrequency" value="monthly" />
+                      <span>Mo</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="holidaysFrequency" value="annual" checked />
+                      <span>Yr</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="spending-row">
+                  <label for="carAmount">Car</label>
+                  <input id="carAmount" type="number" min="0" step="100" value="5000" />
+                  <div class="frequency-toggle" aria-label="Car frequency">
+                    <label>
+                      <input type="radio" name="carFrequency" value="monthly" />
+                      <span>Mo</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="carFrequency" value="annual" checked />
+                      <span>Yr</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <div class="range-row">
-              <label for="growthRate">Expected return</label>
-              <span id="growthRateValue">6.0%</span>
-              <input id="growthRate" type="range" min="1" max="10" step="0.1" value="6" />
+            <div class="panel-heading assumptions-heading">
+              <h2>Assumptions</h2>
+              <div class="heading-actions">
+                <button class="text-button" id="assumptionsToggle" type="button" aria-expanded="true" aria-controls="assumptionsContent">
+                  Hide
+                </button>
+                <button class="icon-button" id="resetButton" type="button" title="Reset assumptions" aria-label="Reset assumptions">
+                  ↺
+                </button>
+              </div>
             </div>
-            <div class="range-row">
-              <label for="inflationRate">Inflation</label>
-              <span id="inflationRateValue">2.5%</span>
-              <input id="inflationRate" type="range" min="0" max="7" step="0.1" value="2.5" />
-            </div>
-            <div class="range-row">
-              <label for="taxRate">Effective tax rate</label>
-              <span id="taxRateValue">18%</span>
-              <input id="taxRate" type="range" min="0" max="40" step="1" value="18" />
+
+            <div id="assumptionsContent" class="assumptions-content">
+              <label>
+                Year of birth
+                <input id="birthYear" type="number" min="1900" max="2050" value="1964" />
+              </label>
+              <label>
+                Tax year starting April
+                <input id="currentYear" type="number" min="2000" max="2100" value="2026" />
+              </label>
+              <label>
+                Planning age
+                <input id="planningAge" type="number" min="60" max="110" value="95" />
+              </label>
+              <div class="spending-group" aria-label="Tax year settings">
+                <div class="group-heading">
+                  <span>Tax year settings</span>
+                  <strong id="lsaRemaining">£0 LSA left</strong>
+                </div>
+                <label>
+                  Lump Sum Allowance
+                  <input id="lumpSumAllowance" type="number" min="0" step="1000" value="268275" />
+                </label>
+                <label>
+                  TFLs taken to date
+                  <input id="taxFreeLumpSumsTaken" type="number" min="0" step="1000" value="0" />
+                </label>
+                <label>
+                  Crystallised pension
+                  <input id="crystallisedPension" type="number" min="0" step="1000" value="200000" />
+                </label>
+                <label>
+                  Uncrystallised pension
+                  <input id="uncrystallisedPension" type="number" min="0" step="1000" value="180000" />
+                </label>
+                <label>
+                  Tax allowance
+                  <input id="taxAllowance" type="number" min="0" step="100" value="12570" />
+                </label>
+                <label>
+                  Higher rate threshold
+                  <input id="higherRateThreshold" type="number" min="0" step="100" value="50270" />
+                </label>
+                <label>
+                  Personal savings allowance
+                  <input id="personalSavingsAllowance" type="number" min="0" step="100" value="1000" />
+                </label>
+                <label>
+                  Basic tax rate
+                  <input id="basicTaxRate" type="number" min="0" max="100" step="1" value="20" />
+                </label>
+                <label>
+                  Higher tax rate
+                  <input id="higherTaxRate" type="number" min="0" max="100" step="1" value="40" />
+                </label>
+                <label>
+                  Bank balance
+                  <input id="bankBalance" type="number" min="0" step="1000" value="25000" />
+                </label>
+                <label>
+                  Bank interest rate
+                  <input id="bankInterestRate" type="number" min="0" max="20" step="0.1" value="3.5" />
+                </label>
+                <label>
+                State pension amount
+                  <input id="statePensionAmount" type="number" min="0" step="1" value="12000" />
+                </label>
+                <label>
+                  Defined benefit payments
+                  <input id="definedBenefitPayments" type="number" min="0" step="100" value="20000" />
+                </label>
+              </div>
+              <div class="range-row">
+                <label for="growthRate">Expected return</label>
+                <span id="growthRateValue">6.0%</span>
+                <input id="growthRate" type="range" min="1" max="10" step="0.1" value="6" />
+              </div>
+              <div class="range-row">
+                <label for="inflationRate">Inflation</label>
+                <span id="inflationRateValue">2.5%</span>
+                <input id="inflationRate" type="range" min="0" max="7" step="0.1" value="2.5" />
+              </div>
             </div>
           </form>
         </aside>
 
         <section class="results-panel" aria-label="Retirement projection results">
           <div class="metric-grid">
-            <article class="metric">
-              <span>Projected at retirement</span>
-              <strong id="retirementBalance">$0</strong>
+            <article class="metric plan-year-metric" id="planYearMetric" hidden>
+              <span>Plan year</span>
+              <strong id="selectedPlanYearNumber">-</strong>
+              <small id="selectedPlanYearDetail">Year - · Age -</small>
             </article>
             <article class="metric">
-              <span>First-year portfolio need</span>
-              <strong id="portfolioNeed">$0</strong>
+              <span>Monthly spend</span>
+              <strong id="monthlySpend">£0</strong>
+              <small id="monthlySpendToday"></small>
             </article>
             <article class="metric">
-              <span>Sustainable withdrawal</span>
-              <strong id="withdrawalRate">0%</strong>
+              <span>Annual spend</span>
+              <strong id="yearSpend">£0</strong>
             </article>
             <article class="metric">
-              <span>Estimated final balance</span>
-              <strong id="finalBalance">$0</strong>
+              <span>Tax estimate</span>
+              <strong id="taxEstimate">£0</strong>
+              <small id="monthlyTaxEstimate">(£0/month)</small>
+            </article>
+            <article class="metric">
+              <span>Taxable draw</span>
+              <strong id="portfolioNeed">£0</strong>
             </article>
           </div>
 
+          <div class="chart-section plan-chart-section" id="planChartSection" hidden>
+            <div class="section-heading">
+              <h2>Imported Plan</h2>
+              <div class="legend plan-legend">
+                <span><i class="dot partner-work"></i>Partner work</span>
+                <span><i class="dot state"></i>State/DB</span>
+                <span><i class="dot tfls"></i>TFLs</span>
+                <span><i class="dot draw"></i>Taxable draw</span>
+                <span><i class="dot savings"></i>Savings</span>
+              </div>
+            </div>
+            <canvas id="planStackedChart" width="1100" height="430" aria-label="Imported plan stacked bar chart"></canvas>
+          </div>
+
+          <aside class="end-values" aria-label="Starting tax year values">
+            <div class="section-heading">
+              <h2>Start of April</h2>
+            </div>
+            <dl>
+              <div>
+                <dt>Pot left</dt>
+                <dd id="startPot">£0</dd>
+              </div>
+              <div>
+                <dt>Cryst. pot</dt>
+                <dd id="startCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Uncryst. pot</dt>
+                <dd id="startUncrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Bank balance</dt>
+                <dd id="startBankBalance">£0</dd>
+              </div>
+              <div>
+                <dt>TFLs taken</dt>
+                <dd id="startTflsTaken">£0</dd>
+              </div>
+              <div>
+                <dt>LSA left</dt>
+                <dd id="startLsa">£0</dd>
+              </div>
+              <div>
+                <dt>Available TFC</dt>
+                <dd id="startTaxFreeCash">£0</dd>
+              </div>
+            </dl>
+          </aside>
+
+          <section class="chart-section tax-year-section">
+            <div class="section-heading">
+              <h2 id="taxYearHeading">Tax Year</h2>
+              <div class="legend">
+                <span>April to March</span>
+              </div>
+            </div>
+            <div class="timeline-table-wrap">
+              <table class="timeline-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th><span>Income</span><span>desired</span></th>
+                    <th>Income</th>
+                    <th>Bills</th>
+                    <th>Holidays</th>
+                    <th>Tax</th>
+                    <th>TFC</th>
+                    <th>Partner</th>
+                    <th>ISA</th>
+                    <th>Savings</th>
+                    <th><span>Premium</span><span>bonds</span></th>
+                    <th><span>Taxable</span><span>draw</span></th>
+                    <th><span>Free</span><span>cash</span></th>
+                    <th><span>Pot</span><span>left</span></th>
+                  </tr>
+                </thead>
+                <tbody id="taxYearTimeline"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="end-values" aria-label="Projected end of tax year values">
+            <div class="section-heading">
+              <h2>End of March</h2>
+            </div>
+            <dl>
+              <div>
+                <dt>Pot left</dt>
+                <dd id="endPot">£0</dd>
+              </div>
+              <div>
+                <dt>Cryst. pot</dt>
+                <dd id="endCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Uncryst. pot</dt>
+                <dd id="endUncrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Bank balance</dt>
+                <dd id="endBankBalance">£0</dd>
+              </div>
+              <div>
+                <dt>TFLs taken</dt>
+                <dd id="endTflsTaken">£0</dd>
+              </div>
+              <div>
+                <dt>LSA left</dt>
+                <dd id="endLsa">£0</dd>
+              </div>
+              <div>
+                <dt>Available TFC</dt>
+                <dd id="endTaxFreeCash">£0</dd>
+              </div>
+            </dl>
+          </aside>
+
+          <aside class="end-values" aria-label="Tax year value changes">
+            <div class="section-heading">
+              <h2>Change</h2>
+            </div>
+            <dl>
+              <div>
+                <dt>Pot left</dt>
+                <dd id="changePot">£0</dd>
+              </div>
+              <div>
+                <dt>Cryst. pot</dt>
+                <dd id="changeCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Uncryst. pot</dt>
+                <dd id="changeUncrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Bank balance</dt>
+                <dd id="changeBankBalance">£0</dd>
+              </div>
+              <div>
+                <dt>TFLs taken</dt>
+                <dd id="changeTflsTaken">£0</dd>
+              </div>
+              <div>
+                <dt>LSA left</dt>
+                <dd id="changeLsa">£0</dd>
+              </div>
+              <div>
+                <dt>Available TFC</dt>
+                <dd id="changeTaxFreeCash">£0</dd>
+              </div>
+            </dl>
+          </aside>
+
           <div class="chart-section">
             <div class="section-heading">
-              <h2>Balance Projection</h2>
+              <h2>Long-Term Balance</h2>
               <div class="legend">
                 <span><i class="dot saved"></i>Savings</span>
                 <span><i class="dot spent"></i>Spending draw</span>
