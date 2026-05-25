@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">
             <span>Retirement_Optimizer</span>
-            <span class="version-tag">0.2</span>
+            <button class="version-tag" id="versionTag" type="button" title="Show last changed date">0.3</button>
             <span class="plan-status-badge" id="planStatusBadge">No Plan Loaded</span>
           </p>
           <h1>Plan the next retirement year and its long-term effect.</h1>
@@ -213,6 +213,10 @@
                   Defined benefit payments
                   <input id="definedBenefitPayments" type="number" min="0" step="100" value="20000" />
                 </label>
+                <label>
+                  Defined benefit lump sum
+                  <input id="definedBenefitLumpSum" type="number" min="0" step="100" value="0" />
+                </label>
               </div>
               <div class="range-row">
                 <label for="growthRate">Expected return</label>
@@ -229,31 +233,64 @@
         </aside>
 
         <section class="results-panel" aria-label="Retirement projection results">
-          <div class="metric-grid">
-            <article class="metric plan-year-metric" id="planYearMetric" hidden>
-              <span>Plan year</span>
-              <strong id="selectedPlanYearNumber">-</strong>
-              <small id="selectedPlanYearDetail">Year - · Age -</small>
-            </article>
-            <article class="metric">
-              <span>Monthly spend</span>
-              <strong id="monthlySpend">£0</strong>
-              <small id="monthlySpendToday"></small>
-            </article>
-            <article class="metric">
-              <span>Annual spend</span>
-              <strong id="yearSpend">£0</strong>
-            </article>
-            <article class="metric">
-              <span>Tax estimate</span>
-              <strong id="taxEstimate">£0</strong>
-              <small id="monthlyTaxEstimate">(£0/month)</small>
-            </article>
-            <article class="metric">
-              <span>Taxable draw</span>
-              <strong id="portfolioNeed">£0</strong>
-            </article>
-          </div>
+          <section class="top-summary" aria-label="Selected plan year summary">
+            <dl class="top-summary-grid primary">
+              <div class="plan-year-metric" id="planYearMetric">
+                <dt>Plan year</dt>
+                <dd id="selectedPlanYearNumber">-</dd>
+                <small id="selectedPlanYearDetail">Year - · Age -</small>
+              </div>
+              <div>
+                <dt>Annual spend</dt>
+                <dd id="yearSpend">£0</dd>
+              </div>
+              <div>
+                <dt>Monthly spend</dt>
+                <dd id="monthlySpend">£0</dd>
+              </div>
+              <div>
+                <dt>Tax estimate</dt>
+                <dd id="taxEstimate">£0</dd>
+                <small id="monthlyTaxEstimate">(£0/month)</small>
+              </div>
+              <div>
+                <dt>Bills + holidays</dt>
+                <dd id="billsHolidaysTotal">£0</dd>
+              </div>
+              <div>
+                <dt>Free cash</dt>
+                <dd class="compound-cash" id="freeCashTile">£0/Yr £0/Mth</dd>
+              </div>
+            </dl>
+            <dl class="top-summary-grid secondary">
+              <div class="summary-placeholder" aria-hidden="true"></div>
+              <div>
+                <dt>Annual spend</dt>
+                <dd id="yearSpendToday">-</dd>
+                <small>Today Equiv</small>
+              </div>
+              <div>
+                <dt>Monthly spend</dt>
+                <dd id="monthlySpendToday">-</dd>
+                <small>Today Equiv</small>
+              </div>
+              <div>
+                <dt>Tax estimate</dt>
+                <dd id="taxEstimateToday">-</dd>
+                <small>Today Equiv</small>
+              </div>
+              <div>
+                <dt>Bills + holidays</dt>
+                <dd id="billsHolidaysToday">-</dd>
+                <small>Today Equiv</small>
+              </div>
+              <div>
+                <dt>Free cash</dt>
+                <dd class="compound-cash" id="freeCashToday">-</dd>
+                <small>Today Equiv</small>
+              </div>
+            </dl>
+          </section>
 
           <div class="chart-section plan-chart-section" id="planChartSection" hidden>
             <div class="section-heading">
@@ -279,8 +316,12 @@
                 <dd id="startPot">£0</dd>
               </div>
               <div>
-                <dt>Cryst. pot</dt>
+                <dt>Crystallised balance</dt>
                 <dd id="startCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Crystallised to date</dt>
+                <dd id="startCrystallisedToDate">£0</dd>
               </div>
               <div>
                 <dt>Uncryst. pot</dt>
@@ -347,8 +388,12 @@
                 <dd id="endPot">£0</dd>
               </div>
               <div>
-                <dt>Cryst. pot</dt>
+                <dt>Crystallised balance</dt>
                 <dd id="endCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Crystallised to date</dt>
+                <dd id="endCrystallisedToDate">£0</dd>
               </div>
               <div>
                 <dt>Uncryst. pot</dt>
@@ -383,8 +428,12 @@
                 <dd id="changePot">£0</dd>
               </div>
               <div>
-                <dt>Cryst. pot</dt>
+                <dt>Crystallised balance</dt>
                 <dd id="changeCrystallised">£0</dd>
+              </div>
+              <div>
+                <dt>Crystallised to date</dt>
+                <dd id="changeCrystallisedToDate">£0</dd>
               </div>
               <div>
                 <dt>Uncryst. pot</dt>
@@ -411,7 +460,7 @@
 
           <div class="chart-section">
             <div class="section-heading">
-              <h2>Long-Term Balance</h2>
+              <h2>Long-Term Balance to Pot Exhaustion</h2>
               <div class="legend">
                 <span><i class="dot saved"></i>Savings</span>
                 <span><i class="dot spent"></i>Spending draw</span>

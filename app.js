@@ -16,6 +16,7 @@ const DEFAULTS = {
   bankInterestRate: 3.5,
   statePensionAmount: 12000,
   definedBenefitPayments: 20000,
+  definedBenefitLumpSum: 0,
   targetEquivalentIncome: 80000,
   partnerWorkIncome: 0,
   partnerStatePension: 0,
@@ -48,6 +49,7 @@ const TAX_YEAR_MONTHS = [
   "Feb",
   "Mar",
 ];
+const MAX_PROJECTION_AGE = 120;
 
 const form = document.querySelector("#optimizerForm");
 const chart = document.querySelector("#projectionChart");
@@ -81,6 +83,7 @@ const FIELD_ALIASES = {
   bankInterestRate: ["bankinterestrate", "interestrate", "savingsrate"],
   statePensionAmount: ["statepensionamount", "statepension", "statepensionincome", "fixedincome"],
   definedBenefitPayments: ["definedbenefitpayments", "definedbenefit", "dbpension", "dbincome", "workpension"],
+  definedBenefitLumpSum: ["definedbenefitlumpsum", "dblumpsum", "workpensionlumpsum"],
   targetEquivalentIncome: ["targetequivalentincome", "grossincomerequired", "incomedesired", "desiredincome", "incomerequired", "targetincome", "annualspending"],
   partnerWorkIncome: ["partnerworkincome", "partnerwork", "partnerincome", "partneremploymentincome"],
   partnerStatePension: ["partnerstatepension", "partnersstatepension"],
@@ -116,8 +119,10 @@ const planYearValue = document.querySelector("#planYearValue");
 const planChartSection = document.querySelector("#planChartSection");
 const planYearMetric = document.querySelector("#planYearMetric");
 const planStatusBadge = document.querySelector("#planStatusBadge");
+const versionTag = document.querySelector("#versionTag");
 let importedPlan = null;
 let selectedPlanIndex = 0;
+let versionTagTimer = null;
 
 function setupNumberInputs() {
   Object.entries(fields).forEach(([key, field]) => {
@@ -333,9 +338,25 @@ function isForecasterPlanExport(parsed) {
 function getForecasterPlan(parsed) {
   return {
     assumptions: parsed.assumptions || {},
+    name: getImportedPlanName(parsed),
     rows: parsed.projection.rows,
     selectedIndex: 0,
   };
+}
+
+function getImportedPlanName(parsed) {
+  return [
+    parsed.planName,
+    parsed.name,
+    parsed.title,
+    parsed.meta?.planName,
+    parsed.meta?.name,
+    parsed.meta?.title,
+    parsed.assumptions?.plan?.planName,
+    parsed.assumptions?.plan?.name,
+    parsed.assumptions?.sourceState?.planName,
+    parsed.assumptions?.sourceState?.name,
+  ].find((value) => typeof value === "string" && value.trim())?.trim() || "";
 }
 
 function getForecasterYearSettings(parsed) {
@@ -372,6 +393,7 @@ function getForecasterPlanRowSettings(parsed, year) {
     bankInterestRate: (parsed.assumptions?.sourceState?.personalBankInterestRate || 0) * 100,
     statePensionAmount: year.ownStatePension,
     definedBenefitPayments: year.definedBenefitIncome,
+    definedBenefitLumpSum: year.definedBenefitLumpSum,
     targetEquivalentIncome: Math.max(0, annualSpendTarget - (year.carCost || 0)),
     partnerWorkIncome: year.partnerIncome,
     partnerStatePension: year.partnerStatePension,
@@ -548,7 +570,9 @@ function updatePlanControls() {
   planYearControl.hidden = !hasPlan;
   planChartSection.hidden = !hasPlan;
   planYearMetric.hidden = !hasPlan;
-  planStatusBadge.textContent = hasPlan ? "Plan Loaded" : "No Plan Loaded";
+  planStatusBadge.textContent = hasPlan
+    ? `Plan Loaded${importedPlan.name ? `: ${importedPlan.name}` : ""}`
+    : "No Plan Loaded";
   planStatusBadge.classList.toggle("loaded", hasPlan);
 
   if (!hasPlan) {
@@ -576,7 +600,7 @@ function updatePlanYearLabel() {
   document.querySelector("#selectedPlanYearDetail").textContent = `${row.calendarYear} · Age ${row.age}`;
 }
 
-function getTodayMoneyMonthlySpend(monthlySpend) {
+function getTodayMoneyValue(value) {
   if (!importedPlan) {
     return null;
   }
@@ -595,7 +619,7 @@ function getTodayMoneyMonthlySpend(monthlySpend) {
     return null;
   }
 
-  return monthlySpend / inflationFactor;
+  return value / inflationFactor;
 }
 
 function applySelectedPlanYear() {
@@ -696,6 +720,37 @@ function currency(value) {
   return moneyFormatter.format(Math.round(value));
 }
 
+function annualMonthlyCurrency(value) {
+  return `${currency(value)}/Yr ${currency(value / 12)}/Mth`;
+}
+
+function lastChangedLabel() {
+  const changedAt = new Date(document.lastModified);
+
+  if (Number.isNaN(changedAt.getTime())) {
+    return "Changed: unknown";
+  }
+
+  return `Changed ${changedAt.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+function showLastChanged() {
+  const version = versionTag.dataset.version || versionTag.textContent;
+  versionTag.dataset.version = version;
+  versionTag.textContent = lastChangedLabel();
+
+  window.clearTimeout(versionTagTimer);
+  versionTagTimer = window.setTimeout(() => {
+    versionTag.textContent = versionTag.dataset.version;
+  }, 5000);
+}
+
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) {
     return value;
@@ -740,6 +795,10 @@ function readInputs() {
   inputs.annualSpending = inputs.targetEquivalentIncome + annualCarCost;
   inputs.spendingScale = categorySpending > 0 ? inputs.annualSpending / categorySpending : 0;
   inputs.startingAssets = inputs.crystallisedPension + inputs.uncrystallisedPension;
+  inputs.startCrystallisedToDate = Math.max(
+    inputs.crystallisedPension,
+    inputs.taxFreeLumpSumsTaken / 0.25
+  );
   const startingLsaRemaining = Math.max(0, inputs.lumpSumAllowance - inputs.taxFreeLumpSumsTaken);
   inputs.effectiveTaxFreeCashThisYear = Math.min(
     inputs.taxFreeLumpSumsThisYear,
@@ -752,8 +811,10 @@ function readInputs() {
     Math.max(0, inputs.uncrystallisedPension - inputs.effectiveTaxFreeCashThisYear / 0.25) * 0.25
   );
   inputs.annualSavingsInterest = inputs.bankBalance * (inputs.bankInterestRate / 100);
-  inputs.annualGrossIncome = inputs.statePensionAmount
+  inputs.annualTaxableIncome = inputs.statePensionAmount
     + inputs.definedBenefitPayments;
+  inputs.annualGrossIncome = inputs.annualTaxableIncome
+    + inputs.definedBenefitLumpSum;
   inputs.partnerContribution = inputs.partnerWorkIncome
     + inputs.partnerStatePension
     + inputs.partnerWorkPension
@@ -767,10 +828,10 @@ function readInputs() {
     0,
     inputs.annualSpending
       - inputs.taxNeutralFunding
-      - inputs.statePensionAmount
+      - inputs.annualGrossIncome
   );
   inputs.taxEstimate = estimateTaxWithSavings(
-    inputs.statePensionAmount + inputs.definedBenefitPayments + inputs.portfolioDraw,
+    inputs.annualTaxableIncome + inputs.portfolioDraw,
     inputs.annualSavingsInterest,
     inputs.taxAllowance,
     inputs.higherRateThreshold,
@@ -896,6 +957,7 @@ function buildTaxYearPlan(inputs) {
   let uncrystallised = inputs.uncrystallisedPension;
   const bank = inputs.bankBalance;
   let actualPortfolioDraw = 0;
+  let fundsCrystallisedThisYear = 0;
 
   const months = TAX_YEAR_MONTHS.map((name, index) => {
     const year = index <= 8 ? inputs.currentYear : inputs.currentYear + 1;
@@ -905,6 +967,7 @@ function buildTaxYearPlan(inputs) {
     const requestedTaxFreeCash = Math.min(monthlyTaxFreeCash, uncrystallised * 0.25);
     const fundsCrystallisedForTaxFreeCash = requestedTaxFreeCash / 0.25;
     const taxFreeCash = fundsCrystallisedForTaxFreeCash * 0.25;
+    fundsCrystallisedThisYear += fundsCrystallisedForTaxFreeCash;
     uncrystallised -= fundsCrystallisedForTaxFreeCash;
     crystallised += fundsCrystallisedForTaxFreeCash * 0.75;
 
@@ -959,6 +1022,7 @@ function buildTaxYearPlan(inputs) {
       - inputs.annualHolidaysCost
       - inputs.taxEstimate,
     endCrystallised: crystallised,
+    endCrystallisedToDate: inputs.startCrystallisedToDate + fundsCrystallisedThisYear,
     endUncrystallised: uncrystallised,
     endBankBalance: bank,
     endPot: crystallised + uncrystallised,
@@ -969,6 +1033,10 @@ function buildTaxYearPlan(inputs) {
 }
 
 function project(inputs) {
+  if (importedPlan?.rows?.length) {
+    return projectImportedPlan();
+  }
+
   const years = [];
   let balance = inputs.startingAssets;
   const growth = inputs.growthRate / 100;
@@ -976,12 +1044,13 @@ function project(inputs) {
   const currentAge = inputs.currentYear - inputs.birthYear;
   const startingBalance = balance;
   let nextYearPortfolioNeed = 0;
+  let exhaustedYear = null;
 
-  for (let age = currentAge; age <= inputs.planningAge; age += 1) {
+  for (let age = currentAge; age <= MAX_PROJECTION_AGE; age += 1) {
     const yearsFromNow = age - currentAge;
     const year = inputs.currentYear + yearsFromNow;
     const spending = inputs.annualSpending * Math.pow(1 + inflation, yearsFromNow);
-    const grossIncome = inputs.annualGrossIncome * Math.pow(1 + inflation * 0.45, yearsFromNow);
+    const grossIncome = inputs.annualTaxableIncome * Math.pow(1 + inflation * 0.45, yearsFromNow);
     const allowance = inputs.taxAllowance * Math.pow(1 + inflation * 0.45, yearsFromNow);
     const higherRateThreshold = inputs.higherRateThreshold * Math.pow(1 + inflation * 0.45, yearsFromNow);
     const portfolioNeed = solvePortfolioDraw(
@@ -1005,6 +1074,17 @@ function project(inputs) {
     });
 
     balance = (balance - portfolioNeed) * (1 + growth);
+
+    if (balance <= 0) {
+      exhaustedYear = { age: age + 1, year: year + 1 };
+      years.push({
+        age: exhaustedYear.age,
+        year: exhaustedYear.year,
+        balance: 0,
+        spendingDraw: portfolioNeed,
+      });
+      break;
+    }
   }
 
   return {
@@ -1013,18 +1093,80 @@ function project(inputs) {
     startingBalance,
     nextYearPortfolioNeed,
     finalBalance: years.at(-1).balance,
+    exhaustedYear,
+    maxProjectionAge: MAX_PROJECTION_AGE,
     withdrawalRate: startingBalance > 0 ? nextYearPortfolioNeed / startingBalance : 0,
+  };
+}
+
+function projectImportedPlan() {
+  const rows = importedPlan.rows;
+  const firstRow = rows[0];
+  const years = rows.map((row) => ({
+    age: row.age,
+    year: row.calendarYear,
+    balance: Math.max(0, row.openingPot || row.openingCrystallisedFund + row.openingUncrystallisedPot || 0),
+    spendingDraw: Math.max(0, row.taxableWithdrawal || 0),
+  }));
+  const exhaustionRow = rows.find((row) => (
+    Number.isFinite(row.totalPotAfterGrowth) && row.totalPotAfterGrowth <= 0
+  ) || (
+    Number.isFinite(row.uncrystallisedPot) && Number.isFinite(row.crystallisedFundLeft)
+      && row.uncrystallisedPot + row.crystallisedFundLeft <= 0
+  ));
+
+  if (exhaustionRow && years.at(-1).balance > 0) {
+    years.push({
+      age: exhaustionRow.age + 1,
+      year: exhaustionRow.calendarYear + 1,
+      balance: 0,
+      spendingDraw: Math.max(0, exhaustionRow.taxableWithdrawal || 0),
+    });
+  }
+
+  const nextYearPortfolioNeed = Math.max(0, firstRow.taxableWithdrawal || 0);
+  const startingBalance = years[0]?.balance || 0;
+
+  return {
+    years,
+    currentAge: firstRow.age,
+    startingBalance,
+    nextYearPortfolioNeed,
+    finalBalance: years.at(-1)?.balance || 0,
+    exhaustedYear: exhaustionRow
+      ? { age: exhaustionRow.age, year: exhaustionRow.calendarYear }
+      : null,
+    maxProjectionAge: rows.at(-1)?.age || MAX_PROJECTION_AGE,
+    withdrawalRate: startingBalance > 0 ? nextYearPortfolioNeed / startingBalance : 0,
+  };
+}
+
+function getChartScale(maxValue, tickCount = 4) {
+  const paddedMax = Math.max(maxValue, 1) * 1.08;
+  const rawStep = paddedMax / tickCount;
+  const quantum = rawStep <= 50000
+    ? 5000
+    : rawStep <= 150000
+      ? 10000
+      : rawStep <= 500000
+        ? 25000
+        : 50000;
+  const step = Math.max(quantum, Math.ceil(rawStep / quantum) * quantum);
+
+  return {
+    step,
+    yMax: step * tickCount,
   };
 }
 
 function drawChart(data) {
   const width = chart.width;
   const height = chart.height;
-  const pad = { top: 24, right: 28, bottom: 44, left: 72 };
+  const pad = { top: 24, right: 28, bottom: 64, left: 72 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
   const maxValue = Math.max(...data.years.map((year) => Math.max(year.balance, year.spendingDraw)), 100000);
-  const yMax = maxValue * 1.12;
+  const { step, yMax } = getChartScale(maxValue);
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "#fbfcfb";
@@ -1033,11 +1175,11 @@ function drawChart(data) {
   ctx.strokeStyle = "#d8ded8";
   ctx.lineWidth = 1;
   ctx.fillStyle = "#65706c";
-  ctx.font = "20px Inter, system-ui, sans-serif";
+  ctx.font = "15px Inter, system-ui, sans-serif";
 
   for (let i = 0; i <= 4; i += 1) {
     const y = pad.top + (plotHeight / 4) * i;
-    const value = yMax - (yMax / 4) * i;
+    const value = yMax - step * i;
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
     ctx.lineTo(width - pad.right, y);
@@ -1072,12 +1214,18 @@ function drawChart(data) {
   ctx.setLineDash([]);
 
   ctx.fillStyle = "#65706c";
-  ctx.font = "22px Inter, system-ui, sans-serif";
-  const tickAges = [data.years[0].age, Math.floor((data.years[0].age + data.years.at(-1).age) / 2), data.years.at(-1).age];
-  tickAges.forEach((age) => {
-    const { x } = point({ age }, 0);
-    ctx.fillText(String(age), x - 10, height - 15);
+  ctx.font = "14px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  const tickIndexes = [0, 0.25, 0.5, 0.75, 1]
+    .map((ratio) => Math.round((data.years.length - 1) * ratio))
+    .filter((index, position, indexes) => indexes.indexOf(index) === position);
+  tickIndexes.forEach((index) => {
+    const year = data.years[index];
+    const { x } = point(year, 0);
+    ctx.fillText(String(year.year), x, height - 32);
+    ctx.fillText(`age ${year.age}`, x, height - 12);
   });
+  ctx.textAlign = "start";
 }
 
 function drawPlanStackedChart() {
@@ -1109,7 +1257,7 @@ function drawPlanStackedChart() {
     )),
     100000
   );
-  const yMax = maxValue * 1.12;
+  const { step, yMax } = getChartScale(maxValue);
   const barGap = 8;
   const barWidth = Math.max(12, (plotWidth - barGap * (rows.length - 1)) / rows.length);
 
@@ -1120,11 +1268,11 @@ function drawPlanStackedChart() {
   planCtx.strokeStyle = "#d8ded8";
   planCtx.lineWidth = 1;
   planCtx.fillStyle = "#65706c";
-  planCtx.font = "20px Inter, system-ui, sans-serif";
+  planCtx.font = "15px Inter, system-ui, sans-serif";
 
   for (let i = 0; i <= 4; i += 1) {
     const y = pad.top + (plotHeight / 4) * i;
-    const value = yMax - (yMax / 4) * i;
+    const value = yMax - step * i;
     planCtx.beginPath();
     planCtx.moveTo(pad.left, y);
     planCtx.lineTo(width - pad.right, y);
@@ -1175,7 +1323,7 @@ function drawPlanStackedChart() {
   planCtx.setLineDash([]);
 
   planCtx.fillStyle = "#65706c";
-  planCtx.font = "18px Inter, system-ui, sans-serif";
+  planCtx.font = "14px Inter, system-ui, sans-serif";
   const tickIndexes = [0, Math.floor((rows.length - 1) / 2), rows.length - 1];
   tickIndexes.forEach((index) => {
     const row = rows[index];
@@ -1190,20 +1338,22 @@ function updateInsights(data, inputs) {
   const message = document.querySelector("#optimizerMessage");
   const levers = document.querySelector("#leversList");
   const rate = data.withdrawalRate;
-  const shortfall = data.finalBalance <= 0;
+  const shortfall = Boolean(data.exhaustedYear);
 
   pill.classList.remove("warning", "danger");
   if (rate <= 0.04 && !shortfall) {
     pill.textContent = "On track";
-    message.textContent = `The ${inputs.currentYear} plan starts at age ${data.currentAge}, has a pension pot of ${currency(inputs.startingAssets)}, needs ${currency(data.nextYearPortfolioNeed)} from the portfolio, and keeps a positive balance through age ${inputs.planningAge}.`;
+    message.textContent = `The ${inputs.currentYear} plan starts at age ${data.currentAge}, has a pension pot of ${currency(inputs.startingAssets)}, needs ${currency(data.nextYearPortfolioNeed)} from the portfolio, and does not exhaust before age ${data.maxProjectionAge}.`;
   } else if (rate <= 0.055 && !shortfall) {
     pill.textContent = "Watch closely";
     pill.classList.add("warning");
-    message.textContent = `The projection survives the planning window, but the ${inputs.currentYear} withdrawal rate is ${Math.round(rate * 1000) / 10}%. A small adjustment to next year's plan could create a wider margin later.`;
+    message.textContent = `The projection does not exhaust before age ${data.maxProjectionAge}, but the ${inputs.currentYear} withdrawal rate is ${Math.round(rate * 1000) / 10}%. A small adjustment to next year's plan could create a wider margin later.`;
   } else {
     pill.textContent = "Needs adjustment";
     pill.classList.add("danger");
-    message.textContent = `The plan is under pressure. The ${inputs.currentYear} plan needs ${currency(data.nextYearPortfolioNeed)} from the portfolio, which is high relative to the current balance.`;
+    message.textContent = data.exhaustedYear
+      ? `The pot is projected to exhaust in ${data.exhaustedYear.year}, around age ${data.exhaustedYear.age}. The ${inputs.currentYear} plan needs ${currency(data.nextYearPortfolioNeed)} from the portfolio.`
+      : `The plan is under pressure. The ${inputs.currentYear} plan needs ${currency(data.nextYearPortfolioNeed)} from the portfolio, which is high relative to the current balance.`;
   }
 
   const spendReduction = Math.max(0, Math.ceil((inputs.portfolioDraw - data.startingBalance * 0.04) / 1000) * 1000);
@@ -1234,9 +1384,11 @@ function updateTaxYearView(taxYearPlan, inputs) {
   document.querySelector("#yearSpend").textContent = currency(taxYearPlan.yearSpend);
   document.querySelector("#taxEstimate").textContent = currency(taxYearPlan.taxEstimate);
   document.querySelector("#monthlyTaxEstimate").textContent = `(${currency(taxYearPlan.taxEstimate / 12)}/month)`;
-  document.querySelector("#portfolioNeed").textContent = currency(taxYearPlan.portfolioDraw);
+  document.querySelector("#billsHolidaysTotal").textContent = currency(taxYearPlan.yearBills + taxYearPlan.yearHolidays);
+  document.querySelector("#freeCashTile").textContent = annualMonthlyCurrency(taxYearPlan.freeCash);
   document.querySelector("#startPot").textContent = currency(inputs.startingAssets);
   document.querySelector("#startCrystallised").textContent = currency(inputs.crystallisedPension);
+  document.querySelector("#startCrystallisedToDate").textContent = currency(inputs.startCrystallisedToDate);
   document.querySelector("#startUncrystallised").textContent = currency(inputs.uncrystallisedPension);
   document.querySelector("#startBankBalance").textContent = currency(inputs.bankBalance);
   document.querySelector("#startTflsTaken").textContent = currency(inputs.taxFreeLumpSumsTaken);
@@ -1244,6 +1396,7 @@ function updateTaxYearView(taxYearPlan, inputs) {
   document.querySelector("#startTaxFreeCash").textContent = currency(startTaxFreeCash);
   document.querySelector("#endPot").textContent = currency(taxYearPlan.endPot);
   document.querySelector("#endCrystallised").textContent = currency(taxYearPlan.endCrystallised);
+  document.querySelector("#endCrystallisedToDate").textContent = currency(taxYearPlan.endCrystallisedToDate);
   document.querySelector("#endUncrystallised").textContent = currency(taxYearPlan.endUncrystallised);
   document.querySelector("#endBankBalance").textContent = currency(taxYearPlan.endBankBalance);
   document.querySelector("#endTflsTaken").textContent = currency(taxYearPlan.endTflsTaken);
@@ -1251,6 +1404,7 @@ function updateTaxYearView(taxYearPlan, inputs) {
   document.querySelector("#endTaxFreeCash").textContent = currency(taxYearPlan.endTaxFreeCash);
   document.querySelector("#changePot").textContent = currency(taxYearPlan.endPot - inputs.startingAssets);
   document.querySelector("#changeCrystallised").textContent = currency(taxYearPlan.endCrystallised - inputs.crystallisedPension);
+  document.querySelector("#changeCrystallisedToDate").textContent = currency(taxYearPlan.endCrystallisedToDate - inputs.startCrystallisedToDate);
   document.querySelector("#changeUncrystallised").textContent = currency(taxYearPlan.endUncrystallised - inputs.uncrystallisedPension);
   document.querySelector("#changeBankBalance").textContent = currency(taxYearPlan.endBankBalance - inputs.bankBalance);
   document.querySelector("#changeTflsTaken").textContent = currency(taxYearPlan.endTflsTaken - inputs.taxFreeLumpSumsTaken);
@@ -1318,7 +1472,11 @@ function render() {
   const cleanInputs = readInputs();
   const data = project(cleanInputs);
   const taxYearPlan = buildTaxYearPlan(cleanInputs);
-  const todayMoneyMonthlySpend = getTodayMoneyMonthlySpend(taxYearPlan.monthlySpend);
+  const todayMoneyYearSpend = getTodayMoneyValue(taxYearPlan.yearSpend);
+  const todayMoneyMonthlySpend = getTodayMoneyValue(taxYearPlan.monthlySpend);
+  const todayMoneyTaxEstimate = getTodayMoneyValue(taxYearPlan.taxEstimate);
+  const todayMoneyBillsHolidays = getTodayMoneyValue(taxYearPlan.yearBills + taxYearPlan.yearHolidays);
+  const todayMoneyFreeCash = getTodayMoneyValue(taxYearPlan.freeCash);
 
   document.querySelector("#growthRateValue").textContent = `${cleanInputs.growthRate.toFixed(1)}%`;
   document.querySelector("#inflationRateValue").textContent = `${cleanInputs.inflationRate.toFixed(1)}%`;
@@ -1327,9 +1485,21 @@ function render() {
     ? targetEquivalentIncomeExact.value
     : formatNumberInput("targetEquivalentIncome", cleanInputs.targetEquivalentIncome);
   document.querySelector("#taxFreeLumpSumsThisYearValue").textContent = currency(cleanInputs.taxFreeLumpSumsThisYear);
+  document.querySelector("#yearSpendToday").textContent = todayMoneyYearSpend === null
+    ? "-"
+    : currency(todayMoneyYearSpend);
   document.querySelector("#monthlySpendToday").textContent = todayMoneyMonthlySpend === null
-    ? ""
-    : `${currency(todayMoneyMonthlySpend)}/Mth Today Equiv`;
+    ? "-"
+    : currency(todayMoneyMonthlySpend);
+  document.querySelector("#taxEstimateToday").textContent = todayMoneyTaxEstimate === null
+    ? "-"
+    : currency(todayMoneyTaxEstimate);
+  document.querySelector("#billsHolidaysToday").textContent = todayMoneyBillsHolidays === null
+    ? "-"
+    : currency(todayMoneyBillsHolidays);
+  document.querySelector("#freeCashToday").textContent = todayMoneyFreeCash === null
+    ? "-"
+    : annualMonthlyCurrency(todayMoneyFreeCash);
   document.querySelector("#lsaRemaining").textContent = `${currency(cleanInputs.lsaRemaining)} LSA left`;
   document.querySelector("#annualSpendingTotal").textContent = `${currency(cleanInputs.annualSpending)}/yr`;
   updateTaxYearView(taxYearPlan, cleanInputs);
@@ -1367,6 +1537,7 @@ document.querySelector("#assumptionsToggle").addEventListener("click", () => {
   toggle.textContent = collapsed ? "Hide" : "Show";
   toggle.setAttribute("aria-expanded", String(collapsed));
 });
+versionTag.addEventListener("click", showLastChanged);
 
 setupNumberInputs();
 resetFields();
