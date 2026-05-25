@@ -68,8 +68,16 @@ input {
   border-radius: 999px;
   background: rgba(45, 128, 103, 0.08);
   color: var(--muted);
+  cursor: pointer;
   font-size: 0.68rem;
+  font-weight: 800;
   line-height: 1;
+  text-transform: uppercase;
+}
+
+.version-tag:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 .plan-status-badge {
@@ -355,41 +363,61 @@ input[type="range"] {
   padding: 14px;
 }
 
-.metric-grid {
+.top-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
-.metric {
-  min-height: 118px;
+.top-summary-grid {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.top-summary-grid.primary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.top-summary-grid.secondary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.top-summary-grid div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 16px;
   background: var(--panel-2);
 }
 
-.metric span {
-  display: block;
-  min-height: 34px;
+.top-summary-grid dt {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 800;
 }
 
-.metric strong {
-  display: block;
-  margin-top: 16px;
-  font-size: clamp(1.35rem, 2.4vw, 2.15rem);
-  line-height: 1;
+.top-summary-grid dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 850;
+  text-align: left;
 }
 
-.metric small {
-  display: block;
-  margin-top: 8px;
+.top-summary-grid .compound-cash {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.top-summary-grid small {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
+}
+
+.top-summary-grid .summary-placeholder {
+  visibility: hidden;
 }
 
 .range-row small {
@@ -467,7 +495,7 @@ input[type="range"] {
 
 .end-values dl {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
@@ -606,8 +634,13 @@ canvas {
     position: static;
   }
 
-  .metric-grid {
+  .top-summary-grid.primary,
+  .top-summary-grid.secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top-summary-grid .summary-placeholder {
+    display: none;
   }
 
   .timeline-table-wrap {
@@ -632,8 +665,13 @@ canvas {
     padding: 14px;
   }
 
-  .metric-grid {
+  .top-summary-grid.primary,
+  .top-summary-grid.secondary {
     grid-template-columns: 1fr;
+  }
+
+  .top-summary-grid .summary-placeholder {
+    display: none;
   }
 
   .section-heading {
