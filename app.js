@@ -642,6 +642,19 @@ function applySelectedPlanYear() {
   saveSettings();
 }
 
+function getActiveImportedYearRow(currentYear) {
+  if (!importedPlan?.rows?.length) {
+    return null;
+  }
+
+  const selectedRow = importedPlan.rows[selectedPlanIndex];
+  if (selectedRow?.calendarYear === currentYear) {
+    return selectedRow;
+  }
+
+  return importedPlan.rows.find((row) => row.calendarYear === currentYear) || null;
+}
+
 function getSavedSettings() {
   try {
     return localStorage.getItem(STORAGE_KEY);
@@ -819,6 +832,7 @@ function readInputs() {
     + inputs.partnerStatePension
     + inputs.partnerWorkPension
     + inputs.partnerSavings;
+  inputs.cashPartnerContribution = inputs.partnerContribution;
   inputs.taxNeutralFunding = inputs.partnerContribution
     + inputs.effectiveTaxFreeCashThisYear
     + inputs.isaSource
@@ -843,9 +857,39 @@ function readInputs() {
     0,
     inputs.annualGrossIncome
       + inputs.portfolioDraw
-      + inputs.taxNeutralFunding
+      + inputs.cashPartnerContribution
+      + inputs.effectiveTaxFreeCashThisYear
+      + inputs.isaSource
+      + inputs.savingsSource
+      + inputs.premiumBondsSource
       - inputs.taxEstimate
   );
+
+  const importedYear = getActiveImportedYearRow(inputs.currentYear);
+  if (importedYear) {
+    inputs.portfolioDraw = Math.max(0, importedYear.taxableWithdrawal || inputs.portfolioDraw);
+    inputs.taxEstimate = Math.max(0, importedYear.estimatedTax || inputs.taxEstimate);
+    inputs.importedFreeCash = Number.isFinite(importedYear.excessNet)
+      ? importedYear.excessNet
+      : null;
+    inputs.cashPartnerContribution = Math.max(
+      0,
+      (importedYear.incomeTotal || 0)
+        - inputs.annualGrossIncome
+        - inputs.effectiveTaxFreeCashThisYear
+    );
+    inputs.annualNetIncome = Math.max(
+      0,
+      inputs.annualGrossIncome
+        + inputs.portfolioDraw
+        + inputs.cashPartnerContribution
+        + inputs.effectiveTaxFreeCashThisYear
+        + inputs.isaSource
+        + inputs.savingsSource
+        + inputs.premiumBondsSource
+        - inputs.taxEstimate
+    );
+  }
 
   return inputs;
 }
@@ -947,10 +991,13 @@ function buildTaxYearPlan(inputs) {
   const monthlyTax = inputs.taxEstimate / 12;
   const monthlyDraw = inputs.portfolioDraw / 12;
   const monthlyTaxFreeCash = inputs.effectiveTaxFreeCashThisYear / 12;
-  const monthlyPartnerContribution = inputs.partnerContribution / 12;
+  const monthlyPartnerContribution = inputs.cashPartnerContribution / 12;
   const monthlyIsaSource = inputs.isaSource / 12;
   const monthlySavingsSource = inputs.savingsSource / 12;
   const monthlyPremiumBondsSource = inputs.premiumBondsSource / 12;
+  const monthlyImportedFreeCash = Number.isFinite(inputs.importedFreeCash)
+    ? inputs.importedFreeCash / 12
+    : null;
   const monthlyBillsAndHolidays = (inputs.annualBillsCost + inputs.annualHolidaysCost) / 12;
   const monthlyPensionGrowth = Math.pow(1 + inputs.growthRate / 100, 1 / 12) - 1;
   let crystallised = inputs.crystallisedPension;
@@ -988,15 +1035,17 @@ function buildTaxYearPlan(inputs) {
       isaSource: monthlyIsaSource,
       savingsSource: monthlySavingsSource,
       premiumBondsSource: monthlyPremiumBondsSource,
-      freeCash: monthlyIncome
-        + taxFreeCash
-        + monthlyPartnerContribution
-        + monthlyIsaSource
-        + monthlySavingsSource
-        + monthlyPremiumBondsSource
-        + crystallisedDraw
-        - monthlyBillsAndHolidays
-        - monthlyTax,
+      freeCash: monthlyImportedFreeCash ?? (
+        monthlyIncome
+          + taxFreeCash
+          + monthlyPartnerContribution
+          + monthlyIsaSource
+          + monthlySavingsSource
+          + monthlyPremiumBondsSource
+          + crystallisedDraw
+          - monthlyBillsAndHolidays
+          - monthlyTax
+      ),
       potLeft: crystallised + uncrystallised,
     };
   });
@@ -1011,16 +1060,18 @@ function buildTaxYearPlan(inputs) {
     yearHolidays: inputs.annualHolidaysCost,
     taxEstimate: inputs.taxEstimate,
     portfolioDraw: actualPortfolioDraw,
-    freeCash: inputs.annualGrossIncome
-      + inputs.effectiveTaxFreeCashThisYear
-      + inputs.partnerContribution
-      + inputs.isaSource
-      + inputs.savingsSource
-      + inputs.premiumBondsSource
-      + actualPortfolioDraw
-      - inputs.annualBillsCost
-      - inputs.annualHolidaysCost
-      - inputs.taxEstimate,
+    freeCash: Number.isFinite(inputs.importedFreeCash)
+      ? inputs.importedFreeCash
+      : inputs.annualGrossIncome
+        + inputs.effectiveTaxFreeCashThisYear
+        + inputs.cashPartnerContribution
+        + inputs.isaSource
+        + inputs.savingsSource
+        + inputs.premiumBondsSource
+        + actualPortfolioDraw
+        - inputs.annualBillsCost
+        - inputs.annualHolidaysCost
+        - inputs.taxEstimate,
     endCrystallised: crystallised,
     endCrystallisedToDate: inputs.startCrystallisedToDate + fundsCrystallisedThisYear,
     endUncrystallised: uncrystallised,
@@ -1448,7 +1499,7 @@ function updateTaxYearView(taxYearPlan, inputs) {
     taxYearPlan.yearHolidays,
     taxYearPlan.taxEstimate,
     inputs.effectiveTaxFreeCashThisYear,
-    inputs.partnerContribution,
+    inputs.cashPartnerContribution,
     inputs.isaSource,
     inputs.savingsSource,
     inputs.premiumBondsSource,
