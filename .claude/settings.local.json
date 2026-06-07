@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/rob/Documents/GitHub/Mini/Retirement_Optimizer/.claude)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ls /Users/rob/Documents/GitHub/Mini/Pension-forecaster/)",
+      "Bash(python3 -m http.server 5174)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/)",
+      "Bash(node --check app.js)",
+      "Bash(/usr/bin/env node *)",
+      "Read(//usr/local/bin/**)",
+      "Bash(awk 'NR>=3022 && NR<=3195' /Users/rob/Documents/GitHub/Mini/Pension-forecaster/app.js)",
+      "Bash(awk 'NR>=1714 && NR<=1870' /Users/rob/Documents/GitHub/Mini/Retirement_Optimizer/app.js)",
+      "Bash(awk 'NR>=2254 && NR<=2490' /Users/rob/Documents/GitHub/Mini/Pension-forecaster/app.js)"
+    ]
+  }
+}
