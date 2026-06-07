@@ -10,33 +10,63 @@
     <main class="app-shell">
       <section class="toolbar" aria-label="Retirement optimizer summary">
         <div>
-          <p class="eyebrow">
+          <div class="eyebrow">
             <span>Retirement_Optimizer</span>
-            <button class="version-tag" id="versionTag" type="button" title="Show last changed date">0.4</button>
+            <button class="version-tag" id="versionTag" type="button" title="Show last changed date">0.5</button>
             <span class="plan-status-badge" id="planStatusBadge">No Plan Loaded</span>
-          </p>
+            <div class="toolbar-actions">
+              <button class="text-button" id="exportSettingsButton" type="button">Export</button>
+              <button class="text-button" id="importSettingsButton" type="button">Import</button>
+              <input id="importSettingsFile" type="file" accept="application/json,.json,text/csv,.csv" hidden />
+              <button class="text-button toolbar-panel-toggle" id="panelToggleButton" type="button" title="Show/hide settings panel" aria-expanded="false" aria-controls="controlsPanel">Settings ›</button>
+            </div>
+            <span class="theme-settings-wrapper">
+              <button class="theme-settings-button" id="themeSettingsButton" type="button" title="Theme settings" aria-label="Theme settings"></button>
+              <div class="theme-panel" id="themePanel" hidden>
+                <p class="theme-panel-heading">Theme</p>
+                <div class="theme-chips">
+                  <button class="theme-chip" data-theme="original" type="button">Classic</button>
+                  <button class="theme-chip" data-theme="dark" type="button">Dark</button>
+                  <button class="theme-chip" data-theme="metallic" type="button">Metal</button>
+                  <button class="theme-chip" data-theme="custom" type="button">Custom</button>
+                </div>
+                <div class="theme-custom-sliders" id="themeCustomSliders">
+                  <div class="theme-slider-row">
+                    <span class="theme-slider-label">Accent</span>
+                    <input class="theme-slider" id="bgHueSlider" type="range" min="0" max="360" step="1" value="175" />
+                    <span class="theme-swatch" id="bgHueSwatch"></span>
+                  </div>
+                  <div class="theme-slider-row">
+                    <span class="theme-slider-label">Tile</span>
+                    <input class="theme-slider" id="tileHueSlider" type="range" min="0" max="360" step="1" value="220" />
+                    <span class="theme-swatch" id="tileHueSwatch"></span>
+                  </div>
+                  <div class="theme-slider-row">
+                    <span class="theme-slider-label">Canvas</span>
+                    <input class="theme-slider canvas-hue-slider" id="canvasHueSlider" type="range" min="0" max="360" step="1" value="220" />
+                    <span class="theme-swatch" id="canvasHueSwatch"></span>
+                  </div>
+                  <div class="theme-slider-row">
+                    <span class="theme-slider-label">Text</span>
+                    <input class="theme-slider text-hue-slider" id="textHueSlider" type="range" min="0" max="360" step="1" value="220" />
+                    <span class="theme-swatch" id="textHueSwatch"></span>
+                  </div>
+                </div>
+              </div>
+            </span>
+          </div>
           <h1>Plan the next retirement year and its long-term effect.</h1>
         </div>
         <div class="status-pill" id="readinessPill">Calculating</div>
       </section>
 
       <section class="workspace">
-        <aside class="controls-panel" aria-label="Retirement assumptions">
+        <aside class="controls-panel" id="controlsPanel" aria-label="Retirement assumptions" hidden>
           <form id="optimizerForm">
             <div class="spending-group planning-controls" aria-label="Tax year plan controls">
               <div class="group-heading">
                 <span>Tax-year plan</span>
                 <strong id="annualSpendingTotal">£0/yr</strong>
-              </div>
-              <div class="import-export-row">
-                <button class="text-button" id="exportSettingsButton" type="button">Export</button>
-                <button class="text-button" id="importSettingsButton" type="button">Import</button>
-                <input id="importSettingsFile" type="file" accept="application/json,.json,text/csv,.csv" hidden />
-              </div>
-              <div class="range-row plan-year-control" id="planYearControl" hidden>
-                <label for="planYearSlider">Plan year</label>
-                <span id="planYearValue">-</span>
-                <input id="planYearSlider" type="range" min="0" max="0" step="1" value="0" />
               </div>
               <div class="planning-slider-grid">
                 <div class="range-row">
@@ -233,13 +263,18 @@
         </aside>
 
         <section class="results-panel" aria-label="Retirement projection results">
+
+          <div class="year-slider-bar" id="yearSliderBar" hidden>
+            <div class="year-slider-track">
+              <span class="year-slider-label" id="yearSliderMin"></span>
+              <input id="planYearSlider" type="range" min="0" max="0" step="1" value="0" aria-label="Select retirement year" />
+              <span class="year-slider-label" id="yearSliderMax"></span>
+            </div>
+            <span class="year-slider-current" id="yearSliderCurrent">-</span>
+          </div>
+
           <section class="top-summary" aria-label="Selected plan year summary">
             <dl class="top-summary-grid primary">
-              <div class="plan-year-metric" id="planYearMetric">
-                <dt>Plan year</dt>
-                <dd id="selectedPlanYearNumber">-</dd>
-                <small id="selectedPlanYearDetail">Year - · Age -</small>
-              </div>
               <div>
                 <dt>Annual spend</dt>
                 <dd id="yearSpend">£0</dd>
@@ -263,7 +298,6 @@
               </div>
             </dl>
             <dl class="top-summary-grid secondary">
-              <div class="summary-placeholder" aria-hidden="true"></div>
               <div>
                 <dt>Annual spend</dt>
                 <dd id="yearSpendToday">-</dd>
@@ -292,18 +326,41 @@
             </dl>
           </section>
 
-          <div class="chart-section plan-chart-section" id="planChartSection" hidden>
-            <div class="section-heading">
-              <h2>Imported Plan</h2>
-              <div class="legend plan-legend">
-                <span><i class="dot partner-work"></i>Partner work</span>
-                <span><i class="dot state"></i>State/DB</span>
-                <span><i class="dot tfls"></i>TFLs</span>
-                <span><i class="dot draw"></i>Taxable draw</span>
-                <span><i class="dot savings"></i>Savings</span>
+          <div id="planChartsSection" hidden>
+
+            <div class="chart-section">
+              <div class="section-heading">
+                <h2>Projection Trends</h2>
+                <div class="chart-toggle-chips">
+                  <button class="chart-toggle-chip" id="toggleSavingsChart" type="button">Savings &amp; pot</button>
+                  <button class="chart-toggle-chip" id="toggleIncomeChart" type="button">Income</button>
+                  <button class="chart-toggle-chip" id="toggleSpendingChart" type="button">Spending</button>
+                  <button class="chart-toggle-chip" id="togglePreRetirement" type="button">Pre-retirement</button>
+                </div>
+              </div>
+
+              <div id="savingsChartWrap">
+                <canvas id="savingsChartCanvas" height="66" aria-label="Savings and pension pot over time"></canvas>
+              </div>
+
+              <div id="incomeChartWrap">
+                <canvas id="incomeChartCanvas" height="66" aria-label="Income sources over time"></canvas>
+              </div>
+
+              <div id="spendingChartWrap">
+                <div class="spending-chart-header">
+                  <h3>Spending Breakdown</h3>
+                  <span id="spendingChartCaption" class="chart-caption"></span>
+                  <div class="chart-toggle-chips">
+                    <button class="chart-toggle-chip" id="toggleFreeOnly" type="button">Free cash only</button>
+                    <button class="chart-toggle-chip" id="toggleMonthly" type="button">Monthly</button>
+                    <button class="chart-toggle-chip chart-toggle-chip-active" id="toggleRealTerms" type="button">Today's money</button>
+                  </div>
+                </div>
+                <canvas id="spendingChartCanvas" height="66" aria-label="Spending breakdown over time"></canvas>
               </div>
             </div>
-            <canvas id="planStackedChart" width="1100" height="430" aria-label="Imported plan stacked bar chart"></canvas>
+
           </div>
 
           <aside class="end-values" aria-label="Starting tax year values">
